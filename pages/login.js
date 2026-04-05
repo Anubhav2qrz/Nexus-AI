@@ -1,18 +1,20 @@
 import { useState } from 'react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
-import { Eye, EyeOff, Mail, Lock, Sparkles, ArrowRight } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Eye, EyeOff, Mail, Lock, Sparkles, ArrowRight, Wand2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '../hooks/useAuth'
 
 export default function LoginPage() {
   const router = useRouter()
-  const { signIn, signInWithGoogle } = useAuth()
+  const { signIn, signInWithGoogle, signInWithMagicLink } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [magicMode, setMagicMode] = useState(false)
+  const [magicSent, setMagicSent] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -27,6 +29,24 @@ export default function LoginPage() {
       router.push('/')
     } catch (err) {
       toast.error(err.message || 'Failed to sign in')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleMagicLink = async (e) => {
+    e.preventDefault()
+    if (!email) {
+      toast.error('Please enter your email')
+      return
+    }
+    setLoading(true)
+    try {
+      await signInWithMagicLink(email)
+      setMagicSent(true)
+      toast.success('Magic link sent! Check your inbox.')
+    } catch (err) {
+      toast.error(err.message || 'Failed to send magic link')
     } finally {
       setLoading(false)
     }
@@ -197,6 +217,97 @@ export default function LoginPage() {
               )}
             </motion.button>
           </form>
+
+          {/* Magic Link toggle */}
+          <div className="mt-5">
+            <button
+              type="button"
+              onClick={() => { setMagicMode(!magicMode); setMagicSent(false) }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium transition-all duration-200"
+              style={{
+                border: '1px dashed var(--border-strong)',
+                color: 'var(--text-secondary)',
+                background: 'transparent',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--sidebar-hover)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              <Wand2 size={15} />
+              {magicMode ? 'Use password instead' : 'Sign in with Magic Link'}
+            </button>
+          </div>
+
+          <AnimatePresence>
+            {magicMode && (
+              <motion.div
+                key="magic"
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.25 }}
+                className="mt-4 rounded-xl p-5"
+                style={{ background: 'rgba(20,184,166,0.06)', border: '1px solid rgba(20,184,166,0.2)' }}
+              >
+                {magicSent ? (
+                  <div className="text-center py-2">
+                    <div className="text-3xl mb-2">✉️</div>
+                    <p className="text-sm font-medium" style={{ color: 'var(--accent)' }}>Magic link sent!</p>
+                    <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                      Check your inbox at <strong>{email}</strong> and click the link to sign in.
+                    </p>
+                    <button
+                      onClick={() => setMagicSent(false)}
+                      className="mt-3 text-xs underline"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      Send again
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleMagicLink} className="space-y-3">
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      We'll email you a one-click sign-in link — no password needed.
+                    </p>
+                    <div className="relative input-glow rounded-xl">
+                      <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        required
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl outline-none text-sm"
+                        style={{
+                          background: 'var(--bg-secondary)',
+                          border: '1px solid var(--border)',
+                          color: 'var(--text-primary)',
+                        }}
+                      />
+                    </div>
+                    <motion.button
+                      type="submit"
+                      disabled={loading}
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-semibold text-sm transition-all"
+                      style={{
+                        background: loading ? 'var(--text-muted)' : 'linear-gradient(135deg, var(--accent) 0%, #0891b2 100%)',
+                        color: '#fff',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        boxShadow: loading ? 'none' : '0 4px 20px rgba(20,184,166,0.3)',
+                      }}
+                    >
+                      {loading ? (
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <><Wand2 size={15} /> Send Magic Link</>
+                      )}
+                    </motion.button>
+                  </form>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Footer links */}
           <div className="mt-6 text-center space-y-2">

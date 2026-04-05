@@ -77,6 +77,19 @@ export function useAuth() {
   }
 
   /**
+   * Sign in with magic link (passwordless email OTP).
+   */
+  const signInWithMagicLink = async (email) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/`,
+      },
+    })
+    if (error) throw error
+  }
+
+  /**
    * Reset password via email link.
    */
   const resetPassword = async (email) => {
@@ -93,6 +106,7 @@ export function useAuth() {
     signIn,
     signUp,
     signInWithGoogle,
+    signInWithMagicLink,
     signOut,
     resetPassword,
   }
