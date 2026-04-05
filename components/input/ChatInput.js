@@ -337,7 +337,7 @@ export default function ChatInput({ onSend, onGenerateImage, disabled }) {
           {/* Image mode label */}
           {imageMode && (
             <span className="text-xs ml-1" style={{ color: 'var(--text-muted)' }}>
-              DALL·E 3 · describe your image
+              Pollinations AI · describe your image
             </span>
           )}
         </div>

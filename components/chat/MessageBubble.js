@@ -62,7 +62,7 @@ export default function MessageBubble({ message, user }) {
               </div>
               <div>
                 <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Generating your image…</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>DALL·E 3 is painting. This takes ~15 seconds.</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Pollinations AI is painting. This takes ~5 seconds.</p>
               </div>
             </div>
             <div className="mt-3 rounded-xl overflow-hidden" style={{ background: 'var(--bg-tertiary)', height: '180px' }}>
