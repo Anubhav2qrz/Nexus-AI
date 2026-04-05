@@ -1,0 +1,16 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[functions]
+  # Increase timeout for image generation (Pollinations can take up to 30s)
+  included_files = ["pages/api/**"]
+
+[context.production.environment]
+  NODE_ENV = "production"
