@@ -12,7 +12,7 @@ import { useChat } from '../../hooks/useChat'
  */
 export default function MobileLayout({ user }) {
   const { mobileDrawerOpen, setMobileDrawerOpen } = useStore()
-  const { messages, sendMessage, isStreaming } = useChat()
+  const { messages, sendMessage, generateImage, isStreaming } = useChat()
   const { isLoadingMessages } = useStore()
 
   const closeDrawer = () => setMobileDrawerOpen(false)
@@ -27,7 +27,7 @@ export default function MobileLayout({ user }) {
         isLoading={isLoadingMessages}
       />
 
-      <ChatInput onSend={sendMessage} disabled={isStreaming} />
+      <ChatInput onSend={sendMessage} onGenerateImage={generateImage} disabled={isStreaming} />
 
       {/* Mobile drawer overlay */}
       <AnimatePresence>

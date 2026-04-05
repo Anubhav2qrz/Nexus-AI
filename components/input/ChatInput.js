@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Paperclip, Mic, Square, ArrowUp,
-  Loader2, X, FileText, Image as ImageIcon, AlertCircle
+  Loader2, X, FileText, Image as ImageIcon, AlertCircle, Wand2
 } from 'lucide-react'
 import useStore from '../../store/useStore'
 import toast from 'react-hot-toast'
@@ -11,12 +11,13 @@ import toast from 'react-hot-toast'
  * ChatInput — the message composition area.
  * Features: auto-resize textarea, send on Enter, real file attachments, real voice input.
  */
-export default function ChatInput({ onSend, disabled }) {
+export default function ChatInput({ onSend, onGenerateImage, disabled }) {
   const [input, setInput] = useState('')
   const [isRecording, setIsRecording] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [attachedFiles, setAttachedFiles] = useState([]) // { name, type, content, preview }
   const [micSupported, setMicSupported] = useState(true)
+  const [imageMode, setImageMode] = useState(false)
 
   const textareaRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -149,6 +150,18 @@ export default function ChatInput({ onSend, disabled }) {
     const trimmed = input.trim()
     if ((!trimmed && attachedFiles.length === 0) || isStreaming || disabled) return
 
+    // Image mode: route to DALL·E generator
+    if (imageMode) {
+      if (!trimmed) {
+        toast.error('Please describe the image you want to generate')
+        return
+      }
+      onGenerateImage?.(trimmed)
+      setInput('')
+      if (textareaRef.current) textareaRef.current.style.height = 'auto'
+      return
+    }
+
     // Build the message content
     let content = trimmed
 
@@ -175,7 +188,7 @@ export default function ChatInput({ onSend, disabled }) {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
     }
-  }, [input, attachedFiles, isStreaming, disabled, onSend])
+  }, [input, attachedFiles, isStreaming, disabled, onSend, onGenerateImage, imageMode])
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -278,26 +291,53 @@ export default function ChatInput({ onSend, disabled }) {
 
         {/* Top action row */}
         <div className="flex items-center gap-1 px-3 pt-2.5">
-          {/* Attachment button */}
+          {/* Image mode toggle */}
           <motion.button
             whileTap={{ scale: 0.9 }}
-            onClick={() => fileInputRef.current?.click()}
-            className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
-            style={{ color: attachedFiles.length > 0 ? 'var(--accent)' : 'var(--text-muted)' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'var(--sidebar-hover)'; e.currentTarget.style.color = 'var(--accent)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = attachedFiles.length > 0 ? 'var(--accent)' : 'var(--text-muted)' }}
-            title="Attach image or text file"
+            onClick={() => setImageMode(m => !m)}
+            className="flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-xs font-medium transition-all duration-200"
+            style={{
+              background: imageMode ? 'rgba(20,184,166,0.15)' : 'transparent',
+              color: imageMode ? 'var(--accent)' : 'var(--text-muted)',
+              border: imageMode ? '1px solid rgba(20,184,166,0.3)' : '1px solid transparent',
+            }}
+            onMouseEnter={e => { if (!imageMode) { e.currentTarget.style.background = 'var(--sidebar-hover)'; e.currentTarget.style.color = 'var(--accent)' } }}
+            onMouseLeave={e => { if (!imageMode) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' } }}
+            title="Toggle image generation mode"
           >
-            <Paperclip size={15} />
+            <Wand2 size={13} />
+            <span>Image</span>
           </motion.button>
 
+          {/* Attachment button — hidden in image mode */}
+          {!imageMode && (
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => fileInputRef.current?.click()}
+              className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
+              style={{ color: attachedFiles.length > 0 ? 'var(--accent)' : 'var(--text-muted)' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--sidebar-hover)'; e.currentTarget.style.color = 'var(--accent)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = attachedFiles.length > 0 ? 'var(--accent)' : 'var(--text-muted)' }}
+              title="Attach image or text file"
+            >
+              <Paperclip size={15} />
+            </motion.button>
+          )}
+
           {/* File count badge */}
-          {attachedFiles.length > 0 && (
+          {attachedFiles.length > 0 && !imageMode && (
             <span
               className="text-xs px-1.5 py-0.5 rounded-full font-medium"
               style={{ background: 'rgba(20,184,166,0.15)', color: 'var(--accent)' }}
             >
               {attachedFiles.length} file{attachedFiles.length > 1 ? 's' : ''}
+            </span>
+          )}
+
+          {/* Image mode label */}
+          {imageMode && (
+            <span className="text-xs ml-1" style={{ color: 'var(--text-muted)' }}>
+              DALL·E 3 · describe your image
             </span>
           )}
         </div>
@@ -358,13 +398,17 @@ export default function ChatInput({ onSend, disabled }) {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={isRecording ? '🎙️ Listening… speak now' : 'Message Nexus…'}
+          placeholder={
+            isRecording ? '🎙️ Listening… speak now'
+            : imageMode ? '✨ Describe the image you want to generate…'
+            : 'Message Nexus…'
+          }
           disabled={disabled}
           rows={1}
           className="w-full px-4 py-2 resize-none outline-none text-sm leading-relaxed"
           style={{
             background: 'transparent',
-            color: isRecording ? 'var(--accent)' : 'var(--text-primary)',
+            color: isRecording ? 'var(--accent)' : imageMode ? '#a78bfa' : 'var(--text-primary)',
             minHeight: '40px',
             maxHeight: '200px',
             fontFamily: 'var(--font-sans)',
@@ -413,15 +457,21 @@ export default function ChatInput({ onSend, disabled }) {
               className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
               style={{
                 background: canSend
-                  ? 'linear-gradient(135deg, var(--accent) 0%, #0891b2 100%)'
+                  ? imageMode
+                    ? 'linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%)'
+                    : 'linear-gradient(135deg, var(--accent) 0%, #0891b2 100%)'
                   : 'var(--bg-tertiary)',
                 color: canSend ? '#fff' : 'var(--text-muted)',
                 cursor: canSend ? 'pointer' : 'not-allowed',
-                boxShadow: canSend ? '0 2px 12px rgba(20,184,166,0.3)' : 'none',
+                boxShadow: canSend
+                  ? imageMode ? '0 2px 12px rgba(124,58,237,0.4)' : '0 2px 12px rgba(20,184,166,0.3)'
+                  : 'none',
               }}
             >
               {isStreaming ? (
                 <Loader2 size={14} className="animate-spin" />
+              ) : imageMode ? (
+                <Wand2 size={14} />
               ) : (
                 <ArrowUp size={14} strokeWidth={2.5} />
               )}

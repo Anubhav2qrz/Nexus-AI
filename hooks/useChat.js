@@ -212,6 +212,91 @@ export function useChat() {
   }, [user, currentChatId, messages, isStreaming, selectedModel, selectedPersonality])
 
   /**
+   * Generate an image with DALL·E 3 and add it to the chat.
+   */
+  const generateImage = useCallback(async (prompt) => {
+    if (!user || !prompt.trim() || isStreaming) return
+
+    // Create a new chat if needed
+    let chatId = currentChatId
+    if (!chatId) {
+      try {
+        const newChat = await createChat(user.id, `🖼️ ${generateChatTitle(prompt)}`, selectedModel)
+        chatId = newChat.id
+        setCurrentChatId(chatId)
+        addChat(newChat)
+      } catch (err) {
+        toast.error('Failed to create chat')
+        return
+      }
+    }
+
+    // Add user prompt to UI
+    const userMessage = {
+      id: `temp-${Date.now()}`,
+      chat_id: chatId,
+      role: 'user',
+      content: `🖼️ Generate image: ${prompt}`,
+      created_at: new Date().toISOString(),
+    }
+    addMessage(userMessage)
+
+    // Add loading placeholder
+    const placeholderId = `img-loading-${Date.now()}`
+    addMessage({
+      id: placeholderId,
+      chat_id: chatId,
+      role: 'assistant',
+      content: '',
+      type: 'image-loading',
+      created_at: new Date().toISOString(),
+      isStreaming: true,
+    })
+    setIsStreaming(true)
+
+    try {
+      await saveMessage(chatId, 'user', `🖼️ Generate image: ${prompt}`)
+
+      const res = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Image generation failed')
+
+      const imageMessage = `![Generated Image](${data.imageUrl})\n\n**Prompt:** ${data.revisedPrompt || prompt}`
+
+      // Replace loading placeholder with actual image
+      const msgs = useStore.getState().messages
+      const updatedMsgs = msgs.map(m =>
+        m.id === placeholderId
+          ? { ...m, content: imageMessage, type: 'image', isStreaming: false }
+          : m
+      )
+      setMessages(updatedMsgs)
+
+      await saveMessage(chatId, 'assistant', imageMessage)
+      await touchChat(chatId)
+      updateChat(chatId, { updated_at: new Date().toISOString() })
+
+    } catch (err) {
+      console.error('Image generation error:', err)
+      toast.error(err.message || 'Failed to generate image')
+      const msgs = useStore.getState().messages
+      const updatedMsgs = msgs.map(m =>
+        m.id === placeholderId
+          ? { ...m, content: '❌ Failed to generate image. Please try again.', type: undefined, isStreaming: false }
+          : m
+      )
+      setMessages(updatedMsgs)
+    } finally {
+      setIsStreaming(false)
+    }
+  }, [user, currentChatId, isStreaming, selectedModel])
+
+  /**
    * Delete a chat.
    */
   const handleDeleteChat = useCallback(async (chatId) => {
@@ -236,6 +321,7 @@ export function useChat() {
     loadChats,
     selectChat,
     sendMessage,
+    generateImage,
     deleteChat: handleDeleteChat,
     newChat: handleNewChat,
     currentChatId,

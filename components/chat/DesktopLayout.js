@@ -12,7 +12,7 @@ import { useChat } from '../../hooks/useChat'
  */
 export default function DesktopLayout({ user }) {
   const { sidebarOpen } = useStore()
-  const { messages, sendMessage, isStreaming } = useChat()
+  const { messages, sendMessage, generateImage, isStreaming } = useChat()
   const { isLoadingMessages } = useStore()
 
   return (
@@ -46,7 +46,7 @@ export default function DesktopLayout({ user }) {
           isLoading={isLoadingMessages}
         />
 
-        <ChatInput onSend={sendMessage} disabled={isStreaming} />
+        <ChatInput onSend={sendMessage} onGenerateImage={generateImage} disabled={isStreaming} />
       </main>
     </div>
   )
